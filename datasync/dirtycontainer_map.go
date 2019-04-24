@@ -48,7 +48,6 @@ func (this *DirtyContainerMap) Set(key interface{}, val interface{}) {
 			dirtyContainerMark.Uninit()
 		}
 	}
-	this.dirtys[key] = dv
 
 	if val != nil {
 		if dirtyContainerMark, ok := val.(IDirtyContainerMark); ok {

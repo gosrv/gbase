@@ -29,5 +29,9 @@ func (this *ControlPointRoute) GetRoute(key interface{}) []gproto.FProcessor {
 
 func (this *ControlPointRoute) Trigger(from interface{}, key interface{}, value interface{}) interface{} {
 	controlPoint := this.cpGroup.GetControlPoint(key)
+	if controlPoint == nil {
+		gl.Warn("no route for key %v", key)
+		return nil
+	}
 	return controlPoint.Controller.Trigger().Trigger(controlPoint, from.(gnet.ISessionCtx))
 }
