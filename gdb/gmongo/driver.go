@@ -53,9 +53,3 @@ func (this *mongoDBDriver) GetAttributeGroup(group, id string) gdb.IDBAttributeG
 func (this *mongoDBDriver) GetPriority() int {
 	return gioc.PriorityMiddle
 }
-
-/*
-func (this *mongoDBDriver) GetMessageQueue(queue string) gdb.IMessageQueue {
-	return NewMongoMessageQueue(queue, session)
-}
-*/

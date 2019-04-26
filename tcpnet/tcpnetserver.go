@@ -27,6 +27,7 @@ type TcpNetServer struct {
 	encoder               gproto.IEncoder
 	decoder               gproto.IDecoder
 	ctlGroup              string
+	netsystem             *NetSystem
 }
 
 func (this *TcpNetServer) GetEventRoute() gproto.IRoute {
@@ -35,8 +36,9 @@ func (this *TcpNetServer) GetEventRoute() gproto.IRoute {
 
 // 启动网络
 func (this *TcpNetServer) BeanStart() {
+	this.netsystem = NewNetSysten(this.createNetConfig())
 	if len(this.host) > 0 {
-		GoListen("tcp", this.host, this.createNetConfig())
+		this.netsystem.GoListen("tcp", this.host)
 		this.log.Debug("net listen on %v", this.host)
 	}
 }
@@ -46,7 +48,7 @@ func (this *TcpNetServer) BeanStop() {
 }
 
 func (this *TcpNetServer) NetConnect(address string) {
-	GoConnect("tcp", address, this.createNetConfig())
+	this.netsystem.GoConnect("tcp", address)
 }
 
 func NewTcpNetServer(cfgBase, ctlGroup string, encoder gproto.IEncoder, decoder gproto.IDecoder,

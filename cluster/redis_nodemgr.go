@@ -11,31 +11,31 @@ import (
 var clusterNodeKey = "_cluster._nodes"
 
 type ActiveNodeInfo struct {
-	nodeInfo   *ClusterNodeInfo
+	nodeInfo   *NodeInfo
 	activeTime int64
 }
 
 type RedisNodeMgr struct {
 	nodeUuid        string `bean:"app.id"`
-	myNodeInfo      *ClusterNodeInfo
+	myNodeInfo      *NodeInfo
 	nodeOpt         *gredis.HashOperation `redis:""`
 	activeNodesInfo map[string]*ActiveNodeInfo
-	allNodesInfo    []*ClusterNodeInfo
-}
-
-func (this *RedisNodeMgr) BeanInit() {
-	this.myNodeInfo = &ClusterNodeInfo{NodeUuid: this.nodeUuid, Tick: time.Now().Unix()}
-}
-
-func (this *RedisNodeMgr) BeanUninit() {
-
+	allNodesInfo    []*NodeInfo
 }
 
 func NewRedisNodeMgr() *RedisNodeMgr {
 	return &RedisNodeMgr{}
 }
 
-func (this *RedisNodeMgr) GetNodeInfo(nodeUuid string) *ClusterNodeInfo {
+func (this *RedisNodeMgr) BeanInit() {
+	this.myNodeInfo = &NodeInfo{NodeUuid: this.nodeUuid, Tick: time.Now().Unix()}
+}
+
+func (this *RedisNodeMgr) BeanUninit() {
+
+}
+
+func (this *RedisNodeMgr) GetNodeInfo(nodeUuid string) *NodeInfo {
 	nodeInfo, ok := this.activeNodesInfo[nodeUuid]
 	if !ok {
 		return nil
@@ -43,13 +43,17 @@ func (this *RedisNodeMgr) GetNodeInfo(nodeUuid string) *ClusterNodeInfo {
 	return nodeInfo.nodeInfo
 }
 
-func (this *RedisNodeMgr) GetAllNodesInfo() []*ClusterNodeInfo {
+func (this *RedisNodeMgr) GetAllNodesInfo() []*NodeInfo {
 	return this.allNodesInfo
 }
 
 func (this *RedisNodeMgr) IsNodeActive(nodeUuid string) bool {
 	_, ok := this.activeNodesInfo[nodeUuid]
 	return ok
+}
+
+func (this *RedisNodeMgr) GetMyNodeInfo() *NodeInfo {
+	return this.myNodeInfo
 }
 
 func (this *RedisNodeMgr) GOStart() {
@@ -78,6 +82,9 @@ func (this *RedisNodeMgr) registerServer() {
 	}
 	nodesInfo := make(map[string]*ActiveNodeInfo)
 	for uuid, ndata := range allData {
+		if uuid == this.myNodeInfo.NodeUuid {
+			continue
+		}
 		activeNodeInfo := &ActiveNodeInfo{}
 		err := json.Unmarshal([]byte(ndata), &activeNodeInfo.nodeInfo)
 		if err != nil {
@@ -88,13 +95,13 @@ func (this *RedisNodeMgr) registerServer() {
 		if !ok || oldActiveNodeInfo.nodeInfo.Tick != activeNodeInfo.nodeInfo.Tick {
 			activeNodeInfo.activeTime = now
 			nodesInfo[uuid] = activeNodeInfo
-		} else if oldActiveNodeInfo.activeTime+10 < now {
+		} else if oldActiveNodeInfo.activeTime+20 < now {
 			this.nodeOpt.HDel(clusterNodeKey, uuid)
 		} else {
 			nodesInfo[uuid] = oldActiveNodeInfo
 		}
 	}
-	allNodesInfo := make([]*ClusterNodeInfo, 0, len(nodesInfo))
+	allNodesInfo := make([]*NodeInfo, 0, len(nodesInfo))
 	for _, ni := range nodesInfo {
 		allNodesInfo = append(allNodesInfo, ni.nodeInfo)
 	}

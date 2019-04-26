@@ -12,12 +12,31 @@ import (
 	"reflect"
 )
 
-type netSystem struct {
+type WsNetSystem struct {
 	host    string
-	wsentry string
+	entry   string
 	msgType int
 	config  *gnet.NetConfig
 	handler *http.ServeMux
+}
+
+const (
+	MsgTypeString = "string"
+	MsgTypeBinary = "bin"
+)
+
+func NewWsNetSystem(host string, entry string, msgType string, config *gnet.NetConfig, handler *http.ServeMux) *WsNetSystem {
+	mt := 0
+	switch msgType {
+	case MsgTypeString:
+		mt = websocket.TextMessage
+	case MsgTypeBinary:
+		mt = websocket.BinaryMessage
+	default:
+		gl.Panic("unknown websocket msg type")
+		return nil
+	}
+	return &WsNetSystem{host: host, entry: entry, msgType: mt, config: config, handler: handler}
 }
 
 var upgrader = websocket.Upgrader{
@@ -29,7 +48,7 @@ var upgrader = websocket.Upgrader{
 }
 
 // 将客户端消息，转发到上游服务器
-func (this *netSystem) goReadProcess(netChannel *wsNetChannel) error {
+func (this *WsNetSystem) goReadProcess(netChannel *wsNetChannel) error {
 	// 通知上游打开连接
 	for netChannel.IsActive() {
 		messageType, msg, err := netChannel.conn.ReadMessage()
@@ -44,13 +63,13 @@ func (this *netSystem) goReadProcess(netChannel *wsNetChannel) error {
 }
 
 // 将上游服务器的消息发送到客户端
-func (this *netSystem) goWriteProcess(netChannel *wsNetChannel) error {
+func (this *WsNetSystem) goWriteProcess(netChannel *wsNetChannel) error {
 	eventRoute := this.config.EventRoute
 	dataRoute := this.config.DataRoute
 
 	eventRoute.Trigger(netChannel.ctx, gnet.NetEventConnect, nil)
 	defer func() {
-		netChannel.Close()
+		_ = netChannel.Close()
 		for {
 			// 把剩下的活干完就可以退出了
 			if msg, ok := <-netChannel.msgUnprocessedChannel; ok {
@@ -72,7 +91,7 @@ func (this *netSystem) goWriteProcess(netChannel *wsNetChannel) error {
 			{
 				if !ok {
 					// channel已被关闭
-					return errors.New("gnet msg processed channel closed.")
+					return errors.New("gnet msg processed channel closed")
 				}
 				err := netChannel.conn.WriteMessage(this.msgType, msg.([]byte))
 				if err != nil {
@@ -83,7 +102,7 @@ func (this *netSystem) goWriteProcess(netChannel *wsNetChannel) error {
 			{
 				if !ok {
 					// channel已被关闭
-					return errors.New("gnet msg unprocessed channel closed.")
+					return errors.New("gnet msg unprocessed channel closed")
 				}
 				netChannel.ctx.Clear(gnet.ScopeRequest)
 				netChannel.ctx.SetAttribute(gnet.ScopeRequest, reflect.TypeOf(msg), msg)
@@ -105,7 +124,7 @@ func (this *netSystem) goWriteProcess(netChannel *wsNetChannel) error {
 	return nil
 }
 
-func (this *netSystem) wsStart(w http.ResponseWriter, r *http.Request) {
+func (this *WsNetSystem) wsStart(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		gl.Warn("ws upgrade error %v", err)
@@ -126,35 +145,12 @@ func (this *netSystem) wsStart(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-const (
-	MsgTypeString = "string"
-	MsgTypeBinary = "bin"
-)
-
-func GoStartWsServer(host string, wsentry string, msgType string,
-	config *gnet.NetConfig, handler *http.ServeMux) *netSystem {
-	mt := 0
-	switch msgType {
-	case MsgTypeString:
-		mt = websocket.TextMessage
-	case MsgTypeBinary:
-		mt = websocket.BinaryMessage
-	default:
-		gl.Panic("unknown websocket msg type")
-		return nil
-	}
-	net := &netSystem{
-		host:    host,
-		wsentry: wsentry,
-		msgType: mt,
-		config:  config,
-		handler: handler,
-	}
+func (this *WsNetSystem) GoStart() *WsNetSystem {
 	gutil.RecoverGo(func() {
-		handler.HandleFunc(wsentry, func(writer http.ResponseWriter, request *http.Request) {
-			net.wsStart(writer, request)
+		this.handler.HandleFunc(this.entry, func(writer http.ResponseWriter, request *http.Request) {
+			this.wsStart(writer, request)
 		})
-		err := http.ListenAndServe(host, handler)
+		err := http.ListenAndServe(this.host, this.handler)
 		if err != nil {
 			gl.Panic("start websocket error %v", err)
 		}

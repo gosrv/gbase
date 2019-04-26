@@ -33,7 +33,7 @@ type WebsocketServer struct {
 	encoder               gproto.IEncoder
 	decoder               gproto.IDecoder
 	ctlGroup              string
-	net                   *netSystem
+	net                   *WsNetSystem
 	handler               *http.ServeMux
 }
 
@@ -43,9 +43,9 @@ func (this *WebsocketServer) GetEventRoute() gproto.IRoute {
 
 // 启动网络
 func (this *WebsocketServer) BeanStart() {
+	this.net = NewWsNetSystem(this.host, this.wsentry, this.msgType, this.createNetConfig(), this.handler)
 	if len(this.host) > 0 {
-		this.net = GoStartWsServer(this.host, this.wsentry, this.msgType,
-			this.createNetConfig(), this.handler)
+		this.net.GoStart()
 		this.log.Debug("websocket listen on %v", this.host)
 	}
 }

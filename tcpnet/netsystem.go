@@ -10,16 +10,23 @@ import (
 	"io"
 	"net"
 	"reflect"
-	"sync/atomic"
 )
 
 const (
 	CACHE_WRITE_BUFF_SIZE = 8192
 )
 
-func readProcess(netChannel *netChannel, config *gnet.NetConfig) error {
-	decoder := config.Decoder
-	buf := gutil.NewBuffer(config.ReadBufSize)
+type NetSystem struct {
+	config *gnet.NetConfig
+}
+
+func NewNetSysten(config *gnet.NetConfig) *NetSystem {
+	return &NetSystem{config: config}
+}
+
+func (this *NetSystem) readProcess(netChannel *netChannel) error {
+	decoder := this.config.Decoder
+	buf := gutil.NewBuffer(this.config.ReadBufSize)
 	for netChannel.IsActive() {
 		_, err := buf.Fill(netChannel.conn)
 		// 解析并处理所有的数据包
@@ -38,8 +45,8 @@ func readProcess(netChannel *netChannel, config *gnet.NetConfig) error {
 	return nil
 }
 
-func writeMessage(writer io.Writer, msg interface{}, config *gnet.NetConfig) error {
-	msgbuffer := config.Encoder.Encode(msg)
+func (this *NetSystem) writeMessage(writer io.Writer, msg interface{}) error {
+	msgbuffer := this.config.Encoder.Encode(msg)
 	n, err := writer.Write(msgbuffer.([]byte))
 	if err != nil {
 		return err
@@ -50,8 +57,8 @@ func writeMessage(writer io.Writer, msg interface{}, config *gnet.NetConfig) err
 	return nil
 }
 
-func flushWriteMessage(writer *bufio.Writer, outChannelRead <-chan interface{}, config *gnet.NetConfig) error {
-	encoder := config.Encoder
+func (this *NetSystem) flushWriteMessage(writer *bufio.Writer, outChannelRead <-chan interface{}) error {
+	encoder := this.config.Encoder
 	for {
 		select {
 		case msg := <-outChannelRead:
@@ -63,10 +70,10 @@ func flushWriteMessage(writer *bufio.Writer, outChannelRead <-chan interface{}, 
 	}
 }
 
-func writeProcess(netChannel *netChannel, config *gnet.NetConfig) error {
-	eventRoute := config.EventRoute
+func (this *NetSystem) writeProcess(netChannel *netChannel) error {
+	eventRoute := this.config.EventRoute
 	netDataWriter := bufio.NewWriterSize(netChannel.conn, CACHE_WRITE_BUFF_SIZE)
-	dataRoute := config.DataRoute
+	dataRoute := this.config.DataRoute
 
 	eventRoute.Trigger(netChannel.ctx, gnet.NetEventConnect, nil)
 	defer func() {
@@ -96,11 +103,11 @@ func writeProcess(netChannel *netChannel, config *gnet.NetConfig) error {
 					// channel已被关闭
 					return errors.New("gnet msg processed channel closed.")
 				}
-				err := writeMessage(netDataWriter, msg, config)
+				err := this.writeMessage(netDataWriter, msg)
 				if err != nil {
 					return err
 				}
-				err = flushWriteMessage(netDataWriter, netChannel.msgProcessedChannel, config)
+				err = this.flushWriteMessage(netDataWriter, netChannel.msgProcessedChannel)
 				flusherr := netDataWriter.Flush()
 				if err != nil {
 					return err
@@ -135,7 +142,7 @@ func writeProcess(netChannel *netChannel, config *gnet.NetConfig) error {
 	return nil
 }
 
-func GoListen(network string, address string, config *gnet.NetConfig) (net.Addr, error) {
+func (this *NetSystem) GoListen(network string, address string) (net.Addr, error) {
 	ln, err := net.Listen(network, address)
 	if err != nil {
 		return nil, err
@@ -145,8 +152,8 @@ func GoListen(network string, address string, config *gnet.NetConfig) (net.Addr,
 		for {
 			conn, err := ln.Accept()
 			util.VerifyNoError(err)
-			netChannel := NewNetChannel(conn, config.WriteChannelSize,
-				config.WriteChannelSize, config.HeartTickMs)
+			netChannel := NewNetChannel(conn, this.config.WriteChannelSize,
+				this.config.WriteChannelSize, this.config.HeartTickMs)
 			netChannel.ctx.SetAttribute(gnet.ScopeSession, gproto.INetChannelType, netChannel)
 			netChannel.ctx.SetAttribute(gnet.ScopeSession, gnet.ISessionCtxType, netChannel.ctx)
 			// 每条连接由两个协程处理，一个读，一个写
@@ -154,14 +161,14 @@ func GoListen(network string, address string, config *gnet.NetConfig) (net.Addr,
 			gutil.RecoverGo(func() {
 				defer netChannel.Close()
 
-				_ = readProcess(netChannel, config)
+				_ = this.readProcess(netChannel)
 			})
 
 			// writer
 			gutil.RecoverGo(func() {
 				defer netChannel.Close()
 
-				_ = writeProcess(netChannel, config)
+				_ = this.writeProcess(netChannel)
 			})
 		}
 	})
@@ -169,32 +176,29 @@ func GoListen(network string, address string, config *gnet.NetConfig) (net.Addr,
 	return ln.Addr(), nil
 }
 
-func GoConnect(network, address string, config *gnet.NetConfig) (runover *int32) {
-	ro := int32(0)
-	runover = &ro
-
-	atomic.StoreInt32(runover, 0)
+func (this *NetSystem) GoConnect(network, address string) (gproto.INetChannel, error) {
+	conn, err := net.Dial(network, address)
+	if err != nil {
+		return nil, err
+	}
+	util.VerifyNoError(err)
+	netChannel := NewNetChannel(conn, this.config.WriteChannelSize,
+		this.config.WriteChannelSize, this.config.HeartTickMs)
+	netChannel.ctx.SetAttribute(gnet.ScopeSession, gproto.INetChannelType, netChannel)
+	netChannel.ctx.SetAttribute(gnet.ScopeSession, gnet.ISessionCtxType, netChannel.ctx)
 
 	gutil.RecoverGo(func() {
-		defer atomic.StoreInt32(runover, 1)
-
-		conn, err := net.Dial(network, address)
-		util.VerifyNoError(err)
-		netChannel := NewNetChannel(conn, config.WriteChannelSize,
-			config.WriteChannelSize, config.HeartTickMs)
-		netChannel.ctx.SetAttribute(gnet.ScopeSession, gproto.INetChannelType, netChannel)
-		netChannel.ctx.SetAttribute(gnet.ScopeSession, gnet.ISessionCtxType, netChannel.ctx)
 		// reader
 		gutil.RecoverGo(func() {
 			defer func() {
 				netChannel.Close()
 			}()
 
-			_ = readProcess(netChannel, config)
+			_ = this.readProcess(netChannel)
 		})
 
-		_ = writeProcess(netChannel, config)
+		_ = this.writeProcess(netChannel)
 	})
 
-	return runover
+	return netChannel, nil
 }
