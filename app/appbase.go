@@ -2,8 +2,10 @@ package app
 
 import (
 	"github.com/globalsign/mgo/bson"
+	"github.com/gosrv/gbase/cluster"
 	"github.com/gosrv/gbase/controller"
 	"github.com/gosrv/gbase/gl"
+	"github.com/gosrv/gbase/gproto"
 	"github.com/gosrv/goioc"
 	"github.com/gosrv/goioc/util"
 	"github.com/urfave/cli"
@@ -133,6 +135,18 @@ func (this *Application) InitBaseBeanBuilder(builder gioc.IBeanContainerBuilder,
 	// bean init
 	builder.AddBean(gioc.NewBeanInitDriver())
 	builder.AddBean(NewAutoLoadConfig())
+}
+
+func (this *Application) InitClusterMqBuilder(builder gioc.IBeanContainerBuilder, cfgBase, ctlGroup string,
+	encoder gproto.IEncoder, decoder gproto.IDecoder, eventRoute gproto.IRouteDelegate,
+	dataRoute gproto.IRouteDelegate) {
+	redisNodeMgr := cluster.NewRedisNodeMgr()
+	builder.AddBean(redisNodeMgr)
+	builder.AddBean(cluster.NewNodeMgr(redisNodeMgr))
+
+	clusterMq := cluster.NewClusterMQ(redisNodeMgr, cfgBase, ctlGroup, encoder, decoder, eventRoute, dataRoute)
+	builder.AddBean(clusterMq)
+	builder.AddBean(cluster.NewNodeMQ(clusterMq))
 }
 
 func (this *Application) Build(builder gioc.IBeanContainerBuilder) gioc.IBeanContainer {

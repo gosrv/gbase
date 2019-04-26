@@ -17,16 +17,16 @@ const (
 )
 
 type NetSystem struct {
-	config *gnet.NetConfig
+	Config *gnet.NetConfig
 }
 
 func NewNetSysten(config *gnet.NetConfig) *NetSystem {
-	return &NetSystem{config: config}
+	return &NetSystem{Config: config}
 }
 
 func (this *NetSystem) readProcess(netChannel *netChannel) error {
-	decoder := this.config.Decoder
-	buf := gutil.NewBuffer(this.config.ReadBufSize)
+	decoder := this.Config.Decoder
+	buf := gutil.NewBuffer(this.Config.ReadBufSize)
 	for netChannel.IsActive() {
 		_, err := buf.Fill(netChannel.conn)
 		// 解析并处理所有的数据包
@@ -46,7 +46,7 @@ func (this *NetSystem) readProcess(netChannel *netChannel) error {
 }
 
 func (this *NetSystem) writeMessage(writer io.Writer, msg interface{}) error {
-	msgbuffer := this.config.Encoder.Encode(msg)
+	msgbuffer := this.Config.Encoder.Encode(msg)
 	n, err := writer.Write(msgbuffer.([]byte))
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ func (this *NetSystem) writeMessage(writer io.Writer, msg interface{}) error {
 }
 
 func (this *NetSystem) flushWriteMessage(writer *bufio.Writer, outChannelRead <-chan interface{}) error {
-	encoder := this.config.Encoder
+	encoder := this.Config.Encoder
 	for {
 		select {
 		case msg := <-outChannelRead:
@@ -71,9 +71,9 @@ func (this *NetSystem) flushWriteMessage(writer *bufio.Writer, outChannelRead <-
 }
 
 func (this *NetSystem) writeProcess(netChannel *netChannel) error {
-	eventRoute := this.config.EventRoute
+	eventRoute := this.Config.EventRoute
 	netDataWriter := bufio.NewWriterSize(netChannel.conn, CACHE_WRITE_BUFF_SIZE)
-	dataRoute := this.config.DataRoute
+	dataRoute := this.Config.DataRoute
 
 	eventRoute.Trigger(netChannel.ctx, gnet.NetEventConnect, nil)
 	defer func() {
@@ -152,8 +152,8 @@ func (this *NetSystem) GoListen(network string, address string) (net.Addr, error
 		for {
 			conn, err := ln.Accept()
 			util.VerifyNoError(err)
-			netChannel := NewNetChannel(conn, this.config.WriteChannelSize,
-				this.config.WriteChannelSize, this.config.HeartTickMs)
+			netChannel := NewNetChannel(conn, this.Config.WriteChannelSize,
+				this.Config.WriteChannelSize, this.Config.HeartTickMs)
 			netChannel.ctx.SetAttribute(gnet.ScopeSession, gproto.INetChannelType, netChannel)
 			netChannel.ctx.SetAttribute(gnet.ScopeSession, gnet.ISessionCtxType, netChannel.ctx)
 			// 每条连接由两个协程处理，一个读，一个写
@@ -182,8 +182,8 @@ func (this *NetSystem) GoConnect(network, address string) (gproto.INetChannel, e
 		return nil, err
 	}
 	util.VerifyNoError(err)
-	netChannel := NewNetChannel(conn, this.config.WriteChannelSize,
-		this.config.WriteChannelSize, this.config.HeartTickMs)
+	netChannel := NewNetChannel(conn, this.Config.WriteChannelSize,
+		this.Config.WriteChannelSize, this.Config.HeartTickMs)
 	netChannel.ctx.SetAttribute(gnet.ScopeSession, gproto.INetChannelType, netChannel)
 	netChannel.ctx.SetAttribute(gnet.ScopeSession, gnet.ISessionCtxType, netChannel.ctx)
 

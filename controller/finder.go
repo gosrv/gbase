@@ -47,7 +47,7 @@ func typeControlPointFinder(bean IController, group IControlPointGroup) {
 			Bean:        bean,
 			Method:      method,
 			ParamTypes:  make([]reflect.Type, method.Type().NumIn(), method.Type().NumIn()),
-			ReturnTypes: make([]reflect.Type, method.Type().NumIn(), method.Type().NumIn()),
+			ReturnTypes: make([]reflect.Type, method.Type().NumOut(), method.Type().NumOut()),
 			Controller:  bean,
 		}
 		for j := 0; j < method.Type().NumIn(); j++ {

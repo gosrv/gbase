@@ -23,12 +23,20 @@ type RedisNodeMgr struct {
 	allNodesInfo    []*NodeInfo
 }
 
+func (this *RedisNodeMgr) BeanStart() {
+	this.GOStart()
+}
+
+func (this *RedisNodeMgr) BeanStop() {
+
+}
+
 func NewRedisNodeMgr() *RedisNodeMgr {
 	return &RedisNodeMgr{}
 }
 
 func (this *RedisNodeMgr) BeanInit() {
-	this.myNodeInfo = &NodeInfo{NodeUuid: this.nodeUuid, Tick: time.Now().Unix()}
+	this.myNodeInfo = &NodeInfo{NodeUuid: this.nodeUuid, Tick: time.Now().Unix(), Meta: map[string]string{}}
 }
 
 func (this *RedisNodeMgr) BeanUninit() {
@@ -82,9 +90,6 @@ func (this *RedisNodeMgr) registerServer() {
 	}
 	nodesInfo := make(map[string]*ActiveNodeInfo)
 	for uuid, ndata := range allData {
-		if uuid == this.myNodeInfo.NodeUuid {
-			continue
-		}
 		activeNodeInfo := &ActiveNodeInfo{}
 		err := json.Unmarshal([]byte(ndata), &activeNodeInfo.nodeInfo)
 		if err != nil {
