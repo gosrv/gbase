@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 	"github.com/gosrv/gbase/controller"
+	"github.com/gosrv/gbase/gl"
 	"github.com/gosrv/gbase/gnet"
 	"github.com/gosrv/gbase/gproto"
 	"github.com/gosrv/gbase/gutil"
@@ -11,6 +12,7 @@ import (
 	"github.com/gosrv/goioc"
 	"github.com/gosrv/goioc/util"
 	"github.com/pkg/errors"
+	"net"
 	"reflect"
 	"time"
 )
@@ -87,13 +89,35 @@ func NewClusterMQ(nodeMgr INodeMgr, cfgBase, ctlGroup string, encoder gproto.IEn
 		nodeNetChannel:    map[string]gproto.INetChannel{},
 	}
 }
+func (this *ClusterMQ) getLANAddress () string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "127.0.0.1:0"
+	}
+
+	for _, address := range addrs {
+		// 检查ip地址判断是否回环地址
+		if ipnet, ok := address.(*net.IPNet); ok && ipnet.IP.IsGlobalUnicast() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String() + ":0"
+			}
+		}
+	}
+	return "127.0.0.1:0"
+}
 
 func (this *ClusterMQ) GoStart() error {
+	if len(this.host) == 0 {
+		this.host = this.getLANAddress()
+		gl.Warn("cluster use lan address %v", this.host)
+	}
 	addr, err := this.netSystem.GoListen("tcp", this.host)
 	if err != nil {
 		return err
 	}
 	this.host = addr.String()
+	gl.Info("cluster listen on %v", this.host)
+
 	this.nodeMgr.GetMyNodeInfo().Meta[KeyHost] = this.host
 
 	gutil.RecoverGo(func() {

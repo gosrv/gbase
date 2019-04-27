@@ -1,17 +1,20 @@
 package dbaccessor
 
-import "github.com/gosrv/gbase/gdb"
+import (
+	"github.com/gosrv/gbase/gdb"
+	"github.com/gosrv/gbase/gproto"
+)
 
 type DBDataAccessorFactory struct {
-	messageQueueFactory     gdb.IMessageQueueFactory
+	messageQueueFactory     gproto.IMessageQueueFactory
 	attributeGroupFactories []gdb.IDBAttributeGroupFactory
 }
 
-func NewDBDataAccessorFactory(messageQueueFactory gdb.IMessageQueueFactory, attributeGroupFactories []gdb.IDBAttributeGroupFactory) *DBDataAccessorFactory {
+func NewDBDataAccessorFactory(messageQueueFactory gproto.IMessageQueueFactory, attributeGroupFactories []gdb.IDBAttributeGroupFactory) *DBDataAccessorFactory {
 	return &DBDataAccessorFactory{messageQueueFactory: messageQueueFactory, attributeGroupFactories: attributeGroupFactories}
 }
 
-func (this *DBDataAccessorFactory) GetMessageQueue(group, id string) gdb.IMessageQueue {
+func (this *DBDataAccessorFactory) GetMessageQueue(group, id string) gproto.IMessageQueue {
 	return this.messageQueueFactory.GetMessageQueue(group, id)
 }
 

@@ -168,6 +168,10 @@ func (this *Application) enterEventLoop() {
 }
 
 func (this *Application) Start(container gioc.IBeanContainer) {
+	for _, bean := range container.GetAllBeans() {
+		gl.Info("active bean %v", reflect.TypeOf(bean))
+	}
+
 	beanInitDriver := container.GetBeanByType(reflect.TypeOf((*gioc.BeanInitDriver)(nil)))[0].(*gioc.BeanInitDriver)
 
 	beanInitDriver.CallInit()

@@ -39,7 +39,7 @@ func (this *TcpNetServer) BeanStart() {
 	this.netsystem = NewNetSysten(this.createNetConfig())
 	if len(this.host) > 0 {
 		this.netsystem.GoListen("tcp", this.host)
-		this.log.Debug("net listen on %v", this.host)
+		this.log.Info("net listen on %v", this.host)
 	}
 }
 

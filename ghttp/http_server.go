@@ -101,7 +101,7 @@ func (this *HttpServer) BeanStart() {
 				continue
 			}
 			lastRoute := name + route.(string)
-			this.log.WithField("route", lastRoute).Debug("connect http route")
+			this.log.WithField("route", lastRoute).Info("connect http route")
 			this.serverMux.HandleFunc(lastRoute, func(writer http.ResponseWriter, request *http.Request) {
 				ctx := this.initRequestCtx(writer, request)
 				rep := cpoint.Controller.Trigger().Trigger(cpoint, ctx)

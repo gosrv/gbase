@@ -3,6 +3,7 @@ package gredis
 import (
 	"github.com/go-redis/redis"
 	"github.com/gosrv/gbase/gdb"
+	"github.com/gosrv/gbase/gproto"
 	"github.com/gosrv/goioc"
 	"reflect"
 )
@@ -23,7 +24,7 @@ type IRedisDriver interface {
 	GetZSetOperation() *ZSetOperation
 	GetBoundZSetOperation(key string) *BoundZSetOperation
 	GetPriority() int
-	GetMessageQueue(group, id string) gdb.IMessageQueue
+	GetMessageQueue(group, id string) gproto.IMessageQueue
 	GetAttributeGroup(group, id string) gdb.IDBAttributeGroup
 }
 
@@ -112,8 +113,8 @@ func (this *redisDriver) GetPriority() int {
 	return gioc.PriorityHigh
 }
 
-func (this *redisDriver) GetMessageQueue(group, id string) gdb.IMessageQueue {
-	return NewRedisMessageQueue(group+this.keySep+id, this.Cmdable)
+func (this *redisDriver) GetMessageQueue(group, id string) gproto.IMessageQueue {
+	return NewRedisMessageQueue(group+this.keySep+id, this.GetListOperation())
 }
 
 func (this *redisDriver) GetAttributeGroup(group, id string) gdb.IDBAttributeGroup {

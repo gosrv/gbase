@@ -1,21 +1,20 @@
 package gredis
 
 import (
-	"github.com/go-redis/redis"
 	"time"
 )
 
 type RedisMessageQueue struct {
-	queue  string
-	cmdOpt redis.Cmdable
+	queue   string
+	listOpt *ListOperation
 }
 
-func NewRedisMessageQueue(queue string, cmdOpt redis.Cmdable) *RedisMessageQueue {
-	return &RedisMessageQueue{queue: queue, cmdOpt: cmdOpt}
+func NewRedisMessageQueue(queue string, listOpt *ListOperation) *RedisMessageQueue {
+	return &RedisMessageQueue{queue: queue, listOpt: listOpt}
 }
 
 func (this *RedisMessageQueue) SetExpireDuration(duration time.Duration) error {
-	ok, err := this.cmdOpt.Expire(this.queue, duration).Result()
+	ok, err := this.listOpt.Expire(this.queue, duration)
 	if ok {
 		return nil
 	}
@@ -23,14 +22,18 @@ func (this *RedisMessageQueue) SetExpireDuration(duration time.Duration) error {
 }
 
 func (this *RedisMessageQueue) Pop(num int) []string {
-	val := this.cmdOpt.LPop(this.queue).Val()
+	val, err := this.listOpt.LPop(this.queue)
+	if err != nil {
+		return nil
+	}
 	return []string{val}
 }
 
 func (this *RedisMessageQueue) Push(msg string) bool {
-	return this.cmdOpt.RPush(this.queue, msg).Err() != nil
+	_, err := this.listOpt.RPush(this.queue, msg)
+	return err == nil
 }
 
 func (this *RedisMessageQueue) Name() string {
-	return "redis"
+	return this.queue
 }
