@@ -4,12 +4,17 @@ type NodeInfo struct {
 	NodeUuid string
 	Meta     map[string]string
 	Tick     int64
+	Stable   bool
 }
 
 type INodeMgr interface {
+	// 节点是否活跃
 	IsNodeActive(nodeUuid string) bool
+	// 获取节点信息
 	GetNodeInfo(nodeUuid string) *NodeInfo
+	// 获取所有节点信息
 	GetAllNodesInfo() []*NodeInfo
+	// 获取本节点信息
 	GetMyNodeInfo() *NodeInfo
 }
 

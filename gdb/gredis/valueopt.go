@@ -5,6 +5,17 @@ import (
 	"time"
 )
 
+const (
+	CasValueScript = "local l=1;\n local rawVal = redis.call('get', KEYS[1])\n" +
+		"if not rawVal then rawVal='' end\n" +
+		"if rawVal == ARGV[1] then\n" +
+		"   redis.call('set', KEYS[1], ARGV[2])\n" +
+		"   return true\n" +
+		"else\n" +
+		"   return false\n" +
+		"end\n"
+)
+
 type ValueOperation struct {
 	wrapKeyFunc WrapKeyFunc
 	cmdable     redis.Cmdable
@@ -12,6 +23,10 @@ type ValueOperation struct {
 
 func NewValueOperation(wrapKeyFunc WrapKeyFunc, cmdable redis.Cmdable) *ValueOperation {
 	return &ValueOperation{wrapKeyFunc: wrapKeyFunc, cmdable: cmdable}
+}
+
+func (this *ValueOperation) Cas(key string, old string, new string) (bool, error) {
+	return this.cmdable.Eval(CasValueScript, []string{this.wrapKeyFunc(key)}, old, new).Bool()
 }
 
 func (this *ValueOperation) Set(key string, value string) (string, error) {
@@ -113,6 +128,10 @@ type BoundValueOperation struct {
 
 func NewBoundValueOperation(boundKey string, cmdable redis.Cmdable) *BoundValueOperation {
 	return &BoundValueOperation{boundKey: boundKey, cmdable: cmdable}
+}
+
+func (this *BoundValueOperation) Cas(old string, new string) (bool, error) {
+	return this.cmdable.Eval(CasValueScript, []string{this.boundKey}, old, new).Bool()
 }
 
 func (this *BoundValueOperation) Set(value string) (string, error) {

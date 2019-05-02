@@ -33,4 +33,3 @@ func (this *RedisMQBundle) Pop(id interface{}, num int) []interface{} {
 	dv := this.decoder.Decode(val)
 	return []interface{}{dv}
 }
-

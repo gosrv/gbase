@@ -37,6 +37,7 @@ func NewRedisNodeMgr() *RedisNodeMgr {
 
 func (this *RedisNodeMgr) BeanInit() {
 	this.myNodeInfo = &NodeInfo{NodeUuid: this.nodeUuid, Tick: time.Now().Unix(), Meta: map[string]string{}}
+	this.registerServer()
 }
 
 func (this *RedisNodeMgr) BeanUninit() {
@@ -96,14 +97,26 @@ func (this *RedisNodeMgr) registerServer() {
 			gl.Debug("json unmarshal error %v", err)
 			continue
 		}
+		activeNodeInfo.nodeInfo.Stable = false
 		oldActiveNodeInfo, ok := this.activeNodesInfo[uuid]
-		if !ok || oldActiveNodeInfo.nodeInfo.Tick != activeNodeInfo.nodeInfo.Tick {
+		if !ok {
+			// 发现新节点
 			activeNodeInfo.activeTime = now
 			nodesInfo[uuid] = activeNodeInfo
-		} else if oldActiveNodeInfo.activeTime+20 < now {
-			this.nodeOpt.HDel(clusterNodeKey, uuid)
 		} else {
-			nodesInfo[uuid] = oldActiveNodeInfo
+			// 老节点
+			if oldActiveNodeInfo.nodeInfo.Tick != activeNodeInfo.nodeInfo.Tick {
+				// 老节点活跃
+				activeNodeInfo.nodeInfo.Stable = true
+				activeNodeInfo.activeTime = now
+				nodesInfo[uuid] = activeNodeInfo
+			} else if oldActiveNodeInfo.activeTime+20 < now {
+				// 老节点失效
+				this.nodeOpt.HDel(clusterNodeKey, uuid)
+			} else {
+				oldActiveNodeInfo.nodeInfo.Stable = false
+				nodesInfo[uuid] = oldActiveNodeInfo
+			}
 		}
 	}
 	allNodesInfo := make([]*NodeInfo, 0, len(nodesInfo))

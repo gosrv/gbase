@@ -89,7 +89,7 @@ func NewClusterMQ(nodeMgr INodeMgr, cfgBase, ctlGroup string, encoder gproto.IEn
 		nodeNetChannel:    map[string]gproto.INetChannel{},
 	}
 }
-func (this *ClusterMQ) getLANAddress () string {
+func (this *ClusterMQ) getLANAddress() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "127.0.0.1:0"

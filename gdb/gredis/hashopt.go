@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	CAS_SCRIPT = "local l=1;\n local rawVal = redis.call('hget', KEYS[1], ARGV[1])\n" +
+	CasScript = "local l=1;\n local rawVal = redis.call('hget', KEYS[1], ARGV[1])\n" +
 		"if not rawVal then rawVal='' end\n" +
 		"if rawVal == ARGV[2] then\n" +
 		"   redis.call('hset', KEYS[1], ARGV[1], ARGV[3])\n" +
@@ -26,7 +26,7 @@ func NewHashOperation(wrapKeyFunc WrapKeyFunc, cmdable redis.Cmdable) *HashOpera
 }
 
 func (this *HashOperation) Cas(key string, hashKey string, old string, new string) (bool, error) {
-	return this.cmdable.Eval(CAS_SCRIPT, []string{this.wrapKeyFunc(key)}, hashKey, old, new).Bool()
+	return this.cmdable.Eval(CasScript, []string{this.wrapKeyFunc(key)}, hashKey, old, new).Bool()
 }
 
 func (this *HashOperation) Expire(key string, duration time.Duration) (bool, error) {
@@ -95,7 +95,7 @@ func NewBoundHashOperation(boundKey string, cmdable redis.Cmdable) *BoundHashOpe
 }
 
 func (this *BoundHashOperation) Cas(hashKey string, old string, new string) (bool, error) {
-	return this.cmdable.Eval(CAS_SCRIPT, []string{this.boundKey}, hashKey, old, new).Bool()
+	return this.cmdable.Eval(CasScript, []string{this.boundKey}, hashKey, old, new).Bool()
 }
 
 func (this *BoundHashOperation) HDel(hashKeys ...string) (int64, error) {

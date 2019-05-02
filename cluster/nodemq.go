@@ -3,6 +3,7 @@ package cluster
 var NodeMQName = "_node.mq"
 
 type INodeMQ interface {
+	// uuid是节点的uuid, msg是一个消息
 	Push(nodeUuid string, msg interface{}) error
 }
 
